@@ -95,3 +95,18 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_trace(void)
+{
+  uint64 p;
+  if(argaddr(0, &p) < 0)
+    return -1;
+  struct proc *prc = myproc();
+  acquire(&prc->lock);
+  prc->trace_mask = p;
+  release(&prc->lock);
+  if((p>>22)%2 == 1)
+    printf("%d: syscall trace (%d) -> 0\n", prc->pid, p);
+  return p;
+}
