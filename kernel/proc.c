@@ -120,6 +120,10 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  p->ctime = ticks;
+  p->rtime = 0;
+  p->etime = 0;
+  p->wtime = 0;
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -445,22 +449,42 @@ scheduler(void)
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
+    if(SCHED[0] == 'R'){
+      for(p = proc; p < &proc[NPROC]; p++) {
+        acquire(&p->lock);
+        if(p->state == RUNNABLE) {
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
 
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&p->lock);
       }
-      release(&p->lock);
+    }
+    else if(SCHED[0] == 'F'){
+      uint64 minimum = ticks + 1000;
+      for( p = proc ; p < &proc[NPROC]; p++) {
+        if( p->state != RUNNABLE ){
+          continue;
+        }
+        if( p->ctime < minimum){
+          minimum = p->ctime;
+        }
+      }
+      for( p = proc ; p < &proc[NPROC]; p++) {
+        if(p->state == RUNNABLE && p->ctime == minimum){
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+          c->proc = 0;
+        }
+      }
     }
   }
 }

@@ -50,7 +50,11 @@ endif
 
 QEMU = qemu-system-riscv64
 
-CC = $(TOOLPREFIX)gcc
+ifndef SCHEDULER
+SCHEDULER = RR
+endif
+SCHEDFLAG = -D SCHED=\"$(SCHEDULER)\"
+CC = $(TOOLPREFIX)gcc $(SCHEDFLAG)
 AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
