@@ -144,6 +144,8 @@ found:
   p->etime = 0;
   p->ctime = ticks;
   p->wtime = 0;
+  p->priority = 60;
+  p->schedules = 0;
   return p;
 }
 
@@ -483,18 +485,74 @@ wait(uint64 addr)
    }
  }
 
- void
- update_time()
- {
-   struct proc* p;
-   for (p = proc; p < &proc[NPROC]; p++) {
-     acquire(&p->lock);
-     if (p->state == RUNNING) {
-       p->rtime++;
-     }
-     release(&p->lock); 
-   }
- }
+void
+update_time()
+{
+  struct proc* p;
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state == RUNNING) {
+      p->rtime++;
+    }
+    if (p->state == SLEEPING) {
+      p->stime++;
+    }
+    release(&p->lock); 
+  }
+}
+
+int 
+getDP(int priority, int rtime, int stime)
+{
+  int niceNess = 0;
+  int temp = 100;
+  int ret = 0;
+  niceNess = stime*10;
+  niceNess /= stime + rtime;
+  if(niceNess < 0){
+    niceNess = 0;
+  }
+  if(priority-niceNess+5 < 100){
+    temp = priority-niceNess+5;
+  }
+  if(temp > 0){
+    ret = temp;
+  }
+  return ret;
+}
+
+int
+set_priority(int new_priority, int pid)
+{
+  struct proc *p;
+  int ret = -1;
+  int callSched = 0;
+  int newDP = 0;
+  int oldDP = 0;
+  for(p = proc; p < &proc[NPROC]; p++){
+    // printf("lollmaol\n");
+    acquire(&p->lock);
+    // printf("hehe\n");
+    if(p->pid == pid){
+      // if(p->priority > new_priority){
+      //   callSched = 1;
+      // }
+      oldDP = getDP(p->priority, p->rtime, p->stime);
+      newDP = getDP(new_priority, p->rtime, p->stime);
+      if(newDP < oldDP){
+        callSched = 1;
+      }
+      ret = p->priority;
+      p->priority = new_priority;
+      release(&p->lock);
+      break;
+    }
+    release(&p->lock);
+  }
+  if(callSched)
+    yield();
+  return ret;
+}
 
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -557,6 +615,51 @@ scheduler(void)
           c->proc = 0;
         }
         release(&fcfsproc->lock);
+      }
+    }
+  #endif
+  #if SCHEDULER == 2
+    for(;;){
+      // Avoid deadlock by ensuring that devices can interrupt.
+      intr_on();
+      struct proc *pbsproc = 0;
+      uint64 minimum = 101;
+      uint64 schedulesMax = 0;
+      uint64 startTime = 0;
+      int dpval = 0;
+      for( p = proc ; p < &proc[NPROC]; p++ ){
+        acquire(&p->lock);
+        dpval = getDP(p->priority, p->rtime, p->stime);
+        if(dpval < minimum && p->state == RUNNABLE){
+          // printf("lollmaolol %d %d %d %d\n", p->priority, dpval, p->rtime, p->stime);
+          minimum = dpval;
+          pbsproc = p;
+          schedulesMax = p->schedules;
+          startTime = p->ctime;
+        }else if(dpval == minimum){
+          if(p->schedules < schedulesMax){
+            pbsproc = p;
+            schedulesMax = p->schedules;
+            startTime = p->ctime;
+          } else if( p->schedules == schedulesMax){
+            if(p->ctime > startTime){
+              pbsproc = p;
+              startTime = p->ctime;
+            }
+          }
+        }
+        release(&p->lock);
+      }
+      if(pbsproc != 0){
+        acquire(&pbsproc->lock);
+        if(pbsproc->state == RUNNABLE){
+          pbsproc->state = RUNNING;
+          pbsproc->schedules += 1;
+          c->proc = pbsproc;
+          swtch(&c->context, &pbsproc->context);
+          c->proc = 0;
+        }
+        release(&pbsproc->lock);
       }
     }
   #endif

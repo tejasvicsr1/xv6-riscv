@@ -119,4 +119,7 @@ struct proc {
   uint64 rtime;                // Running time of the process
   
   uint64 wtime;                // Waiting time of the process
+  uint64 stime;                // Storing the sleeptime of the process
+  uint64 priority;             // priority of the process for running PBS
+  uint64 schedules;            // Number of times the process was scheduled
 };

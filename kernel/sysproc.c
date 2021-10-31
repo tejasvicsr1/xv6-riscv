@@ -58,6 +58,20 @@ sys_waitx(void)
   return ret;
 }
 
+int
+sys_set_priority(void)
+{
+  int new_priority;
+  int pid;
+  int flag = argint(0, &new_priority);
+  if(flag)
+    return -1;
+  flag = argint(1, &pid);
+  if(flag)
+    return -1;
+  return set_priority(new_priority, pid);
+}
+
 uint64
 sys_sbrk(void)
 {

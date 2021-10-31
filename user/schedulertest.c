@@ -16,24 +16,31 @@ int main() {
       if (pid < 0)
           break;
       if (pid == 0) {
-        for (volatile int i = 0; i < 10000; i++) {}
+        for (volatile int i = 0; i < 10000; i++) {} // CPU bound process
         printf("Process %d finished \n", n);
         exit(0);
-// #if (SCHEDULER != 1)
-//           if (n < IO) {
-//             sleep(200); // IO bound processes
-//           } else {
-// #endif
-//             for (volatile int i = 0; i < 1000000000; i++) {} // CPU bound process 
-// #if (SCHEDULER != 1)
-//           }
-// #endif
-//           printf("Process %d finished \n", n);
-//           exit(0);
-//       } else {
-// #if (SCHEDULER == 2)
-//         setpriority(80, pid); // Will only matter for PBS, set lower priority for IO bound processes 
-// #endif
+        // for (volatile int i = 0; i < 10000; i++) {}
+        // printf("Process %d finished \n", n);
+        // exit(0);
+        // #if (SCHEDULER != 1)
+        //         if (n < IO) {
+        //             sleep(200); // IO bound processes
+        //         } else {
+        // #endif
+        //             for (volatile int i = 0; i < 1000000000; i++) {} // CPU bound process 
+        // #if (SCHEDULER != 1)
+        //         }
+        // #endif
+        //         printf("Process %d finished \n", n);
+        //         exit(0);
+        //     } else {
+        // #if (SCHEDULER == 2)
+        //     print
+        //         setpriority(80, pid); // Will only matter for PBS, set lower priority for IO bound processes 
+        // #endif
+      }
+      else{
+				set_priority(80, pid);
       }
   }
   for(;n > 0; n--) {
