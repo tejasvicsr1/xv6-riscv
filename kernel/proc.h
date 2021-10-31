@@ -1,4 +1,10 @@
 // Saved registers for kernel context switches.
+#define SCHED_RR 0
+#define SCHED_FCFS 1
+#define SCHED_PBS 2
+#define SCHED_MLFQ 3
+
+
 struct context {
   uint64 ra;
   uint64 sp;
