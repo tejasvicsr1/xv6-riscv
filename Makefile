@@ -50,6 +50,11 @@ endif
 
 QEMU = qemu-system-riscv64
 
+# ifndef SCHEDULER
+# SCHEDULER = RR
+# endif
+# SCHEDFLAG = -D SCHED=\"$(SCHEDULER)\"
+# CC = $(TOOLPREFIX)gcc $(SCHEDFLAG)
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
@@ -70,6 +75,19 @@ endif
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
+
+# adding stuff for scheduler related work
+MACRO_SCHED = -D SCHEDULER=SCHED_RR
+ifeq ($(SCHEDULER), FCFS)
+MACRO_SCHED = -D SCHEDULER=SCHED_FCFS
+endif
+ifeq ($(SCHEDULER), PBS)
+MACRO_SCHED = -D SCHEDULER=SCHED_PBS
+endif
+ifeq ($(SCHEDULER), MLFQ)
+MACRO_SCHED = -D SCHEDULER=SCHED_MLFQ
+endif
+CFLAGS += $(MACRO_SCHED)
 
 LDFLAGS = -z max-page-size=4096
 
@@ -125,6 +143,7 @@ UPROGS=\
 	$U/_ln\
 	$U/_ls\
 	$U/_mkdir\
+	$U/_time\
 	$U/_rm\
 	$U/_sh\
 	$U/_stressfs\
@@ -132,6 +151,9 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_strace\
+	$U/_schedulertest\
+	$U/_setPriority\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -153,7 +175,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 3
+CPUS := 1
 endif
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic

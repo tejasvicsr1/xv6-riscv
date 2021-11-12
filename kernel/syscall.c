@@ -102,8 +102,11 @@ extern uint64 sys_sbrk(void);
 extern uint64 sys_sleep(void);
 extern uint64 sys_unlink(void);
 extern uint64 sys_wait(void);
+extern uint64 sys_waitx(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
+extern uint64 sys_trace(void);
+extern uint64 sys_set_priority(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -127,20 +130,78 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]   sys_trace,
+[SYS_waitx]   sys_waitx,
+[SYS_set_priority]   sys_set_priority,
 };
 
 void
 syscall(void)
 {
-  int num;
+  int num, i, flag;
   struct proc *p = myproc();
-
+  int maskVal = p->trace_mask;
   num = p->trapframe->a7;
+  i = 1;
+  static int syscalls_args_lists[25] = {
+      0,
+      0,
+      1,
+      1,
+      1,
+      3,
+      1,
+      2,
+      2,
+      1,
+      1,
+      0,
+      1,
+      1,
+      1,
+      2,
+      3,
+      3,
+      1,
+      2,
+      1,
+      1,
+      1,
+      2,
+      3,
+  };
+  flag = 0;
+  while(maskVal > 0){
+    maskVal = maskVal>>1;
+    if(maskVal%2==1){
+      if(i == num){
+        flag = 1;
+      }
+    }
+    i++;
+  }
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     p->trapframe->a0 = syscalls[num]();
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);
     p->trapframe->a0 = -1;
+  }
+  if(flag){
+    static char *maps[32]= {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup", "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close", "trace"};
+    uint64 arr[10];
+    for(int i = 0; i < 6; i++)
+    {
+      argaddr(i, &arr[i]);
+    }
+    printf("%d: syscall %s (", p->pid, maps[num-1]);
+    for(int i = 0; i < syscalls_args_lists[num] ; i++)
+    {
+      if(i>0){
+        printf(" ");
+      }
+      printf("%d", arr[i]);
+    }
+    printf(") -> %d\n", p->trapframe->a0);
   }
 }

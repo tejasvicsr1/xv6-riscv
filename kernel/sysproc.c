@@ -39,6 +39,40 @@ sys_wait(void)
 }
 
 uint64
+sys_waitx(void)
+{
+  uint64 addr, addr1, addr2;
+  uint wtime, rtime;
+  if(argaddr(0, &addr) < 0)
+    return -1;
+  if(argaddr(1, &addr1) < 0) // user virtual memory
+    return -1;
+  if(argaddr(2, &addr2) < 0)
+    return -1;
+  int ret = waitx(addr, &wtime, &rtime);
+  struct proc* p = myproc();
+  if (copyout(p->pagetable, addr1,(char*)&wtime, sizeof(int)) < 0)
+    return -1;
+  if (copyout(p->pagetable, addr2,(char*)&rtime, sizeof(int)) < 0)
+    return -1;
+  return ret;
+}
+
+int
+sys_set_priority(void)
+{
+  int new_priority;
+  int pid;
+  int flag = argint(0, &new_priority);
+  if(flag)
+    return -1;
+  flag = argint(1, &pid);
+  if(flag)
+    return -1;
+  return set_priority(new_priority, pid);
+}
+
+uint64
 sys_sbrk(void)
 {
   int addr;
@@ -94,4 +128,19 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_trace(void)
+{
+  uint64 p;
+  if(argaddr(0, &p) < 0)
+    return -1;
+  struct proc *prc = myproc();
+  acquire(&prc->lock);
+  prc->trace_mask = p;
+  release(&prc->lock);
+  if((p>>22)%2 == 1)
+    printf("%d: syscall trace (%d) -> 0\n", prc->pid, p);
+  return p;
 }

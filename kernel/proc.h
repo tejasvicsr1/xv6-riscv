@@ -1,4 +1,10 @@
 // Saved registers for kernel context switches.
+#define SCHED_RR 0
+#define SCHED_FCFS 1
+#define SCHED_PBS 2
+#define SCHED_MLFQ 3
+
+
 struct context {
   uint64 ra;
   uint64 sp;
@@ -105,4 +111,15 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  int trace_mask;              // Storing the trace value for strace function
+
+  uint64 ctime;                // Start time of the process
+  uint64 etime;                // End time of the process
+  uint64 rtime;                // Running time of the process
+  
+  uint64 wtime;                // Waiting time of the process
+  uint64 stime;                // Storing the sleeptime of the process
+  uint64 priority;             // priority of the process for running PBS
+  uint64 schedules;            // Number of times the process was scheduled
 };
